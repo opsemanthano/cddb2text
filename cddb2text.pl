@@ -15,16 +15,20 @@ use Term::ReadLine;		# tty access in addition to std streams
 require "hostname.pl";
 use vars qw/ $CDDB_HOST $CDDB_PORT $CLIENT $VERS $socket $return/;
 use vars qw/ $enable $opt_e/;
+use vars qw/ $termenable $abort/ ;
 
-local $CDDB_HOST = "cddb.cddb.com";
-local $CDDB_PORT = 888;
+local $CDDB_HOST = "freedb.org";
+local $CDDB_PORT = 8880;
 local $CLIENT = "cddb2text.pl";
-local $VERS = "v0Beta1";
+local $VERS = "v1.2006";
 local $socket;
 local $return;
 my $send;
 my $trans;
 my $which;
+
+$termenable = 'N' ;
+$abort = 'N' ;
 
 if ( ! getopts('e') ) {
 	die("-e to enable database to stdout");
@@ -50,8 +54,11 @@ if ( &connect() < 0 ) {
 # Poor new subroutine for ReadLine
 # This creates a handle to tty to access the keyboard when stdin is
 # not accessable.
-my($term) = Term::ReadLine::new Term::Readline 'cddb2text.pl';
+my($term) ;
+if ( $termenable eq "Y" ) {
+$term = Term::ReadLine::new Term::Readline 'cddb2text.pl';
 $term->ornaments(0);
+}
 # ornaments set to 0 imply no bold face for input text
 
 # if input and output are '-' then select stdin and stdout respectively
@@ -115,6 +122,7 @@ LINE: while($line = <IN>) {
 	my @list;
 	@list = ();
 	if($err==202) {
+		print STDERR "Working on $data[1]\n" ;
 		print STDERR "cddb no match for diskid: $strings[1]\n";
 		next LINE; 
 	} elsif ( $err == 211 ) {
@@ -124,6 +132,7 @@ LINE: while($line = <IN>) {
 		}
 
 		my $n1;
+		print STDERR "Working on $data[1]\n" ;
 		print STDERR "This CD could be:\n\n";
 		my $i = 1;
 		foreach(@list) {
@@ -131,21 +140,27 @@ LINE: while($line = <IN>) {
 			print STDERR "$i: $title\n";
 			$i++;
 		}
-#		print STDERR "\n0: none of the above\n\nChoose : ";
 		print STDERR "\n0: none of the above\n\n";
 		my($prompt) = "Choose : ";
-#		my $n = <STDIN>;
-# Surprisingly this is all there is to it !
-		my $n = $term->readline($prompt);
-		$n1 = int($n);
+		my $n ;
+		if ( $termenable eq 'Y' ) {
+			$n = $term->readline($prompt);
+		} else {
+			$n = <STDIN> ;
+		}
+		$n1 = int($n) ;
 
-		if ( $n1 == 0) {
-			print "nothing chosen - Aborting ...\n";
-#			next LINE;
-			close $socket;
-			close IN;
-			close OUT;
-			exit;
+		if ( $n1 == 0 ) {
+			if ( $abort eq "Y" ) {
+				print "nothing chosen - Aborting ...\n" ;
+				close $socket ;
+				close IN ;
+				close OUT ;
+				exit ;
+			} else {
+				print "nothing chosen - Continue ...\n" ;
+				next LINE;
+			}
 		} else {
 			$return = "200 " . $list[$n1-1];
 		}
@@ -216,7 +231,7 @@ sub connect {
 			Proto => "tcp",
 			Type  => SOCK_STREAM,
 			PeerAddr => $CDDB_HOST,
-			PeerPort => $CDDB_PORT );
+			PeerPort => "$CDDB_PORT" );
 
 	if ( ! $socket ) {
 		 print STDERR 
