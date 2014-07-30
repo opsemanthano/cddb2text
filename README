@@ -1,0 +1,221 @@
+
+				Tools for CD to mp3 ripping
+				---------------------------
+
+	By J.R. Spanier <jonathan@spanier.fsnet.co.uk>
+		Sat Aug 26 00:18:30 BST 2000	
+
+	--	Fixed minor bug on total tracks in cddb2text.pl
+	--	Modified transfer.pl to update.pl for own use.
+		Sat Aug 26 14:20:07 BST 2000
+
+	--	Modified mp3rip to a sh script based on cdda2wav
+		distribution with minor modifications
+	--	Bug in cddb2text.pl for paths with "'" in them has
+		been fixed
+	--	Traced "'" to grab.pl BUT fixed transfer.pl and
+		update.pl instead
+		Sun Aug 27 20:14:50 BST 2000
+
+	--	Created restore.pl which is derived from transfer and
+		update scripts
+		Sat Sep 16 13:32:00 BST 2000
+
+	--	cddb2text.pl has terminal access in addition to stdin
+	--	grab.pl has been partly fixed in exec subroutine to handle
+		'./', '../' and '[0-9a-zA-Z]*/' paths. However it is still
+		not foolproof.
+	--	grab.pl stdout redirection for --save option is now '-'
+		Sun Sep 24 20:47:00 BST 2000
+
+	External Resources
+	------------------
+
+	perl		version 5.005_03 or newer
+	cdda2wav	or other cd to wav extractor (cdparanoia ?)
+	lame		version 3.85beta or other mp3 encoder
+	id3lib		version 3.7.12 or equivalent (examples are necessary)
+	xmms		version 1.2.2 or equivalent (optional)
+			Used iff need to rebuild id3 genre tags.
+
+	Credits
+	-------
+
+	cddb2text.pl was modified and inspired from the PERL module
+	CDDB_get-1.10 from Armin Obersteiner <armin@xos.net>
+
+	id3lib : Dick Mahoney, Scott Haug <eldamitri@users.sourceforge.net>
+		 and all those in the THANKS file of the id3lib distribution
+
+	lame:	 Mike Cheng (www.uq.net.au/~zzmcheng) and maintained by
+		 Mark Taylor (www.sulaco.org/mp3)
+
+	xmms:	Peter Alm et. al. 
+
+	xmcd:	version 2.6 Everyone especially Ti Kan and Steve Scherf
+		<steve@moonsoft.com>. They get a mention because they built
+		the cddb server system. There is an alternative at
+		www.cdindex.org
+
+	kscd:	version 1.2.7 Everyone and had info on cddb information 
+		which is included here as cddb.howto (came on SuSE 6.4 DVD)
+
+	cdrecord:	includes cdda2wav tools
+
+Instructions to build mp3 from CD
+---------------------------------
+
+mp3rip <directory> [ <track no> { <track no> } ]
+
+	extracts current cd into directory
+	use quotes to protect spaces in directory
+
+	creates files as audio_<track>.[inf|mp3]
+
+	currently relies on cdda2wave and lame - this is modifiable
+
+	Track numbers allow parts of the CD to be transferred
+
+grab.pl --save <filename> [ --pass <otherfilename | --lines <number> ] [ <directory> { <directory> } ]
+
+	If <filename> is stdout ('-'), other options are rejected and part of
+	program functions and sends it to stdout (debugging use)
+
+	If <filename> is not stdout (a proper filename), then we can pass
+	output through a pipe into the next process
+
+	<otherfilename> is used if you are offline, so we can contact cddb
+	later.
+
+	<number> is any number which splits the number of CD's to query from
+	the CDDB server. There is currently a limit of 53 or so before the
+	server shuts itself down
+
+	<directory> is where your mp3 files live. grab.pl can cope with mp3
+	files in different directories and understands ~/ and ~<user>/ and
+	does this clever stuff by implementing `find' implemented with PERL
+
+	If no <directory> it will recurse from current directory within which
+	the script was called
+
+	BUGS:
+	-----
+
+	If an cddb index is not an exact match, stdin is used by user to
+	guide the cddb query/get script. If piped, this option becomes
+	undefined. (could cause an error). Hence cdd2text.pl does not accept
+	stdin via pipes. UPDATE: this is now no longer a problem.
+
+	Searching goes haywire/stops if we use ".." for directory path or
+	directory relative to current without a "./" prefix.
+	UPDATE: partly fixed BUT not foolproof.
+
+	The bug which was fixed downstream with cddb2text.pl, update.pl and
+	transfer.pl regarding "\'" appearing in directories arise from the
+	quote subroutine in here - $string =~ s/'/\\'/;
+	If this is fixed, we would still have to fix cddb2text.pl, but
+	the fixes in update.pl and transfer.pl would not be needed.
+
+cdd2text.pl [-e] <filename> <output filename>
+
+	<output filename> is used for next processing (database file)
+	<filename> is the file from --pass option above
+	Both <filename> and <output filename> supports stdin and stdout using
+	'-' characters.
+	if -e appears, then stdout contains a copy of cddb server output
+	database (xmcd database format)
+
+	WISHLIST
+	--------
+
+	Solve stdin problem and reformulate error checking to something
+	resembling ftp.pl in the PERL distribution
+
+	First one regarding stdin problem now solved (24/9/2000 JRS)
+
+	BUGS
+	----
+
+	If directory contains "'", this gets stripped and data within that
+	directory can't be accessed without editing the output file generated
+	by this script (HAS NOW BEEN FIXED)
+
+
+transfer.pl [-d] [ <filename> ]
+
+	<filename> is optional, if it does not exist, stdin is used
+	if -d is set then instead of actual tag generating and moving
+	files, the command is dumped to stdout
+
+	Requires: id3lib (I used id3lib-3.7.12), especially the examples
+		  which were "id3convert" and "id3tag". (possibly "id3info")
+		  This is a C++/C library with shared libraries !
+
+	If tags have a '/' then the script will convert it to '\', so when
+	the file is renamed it does not cause any problems. The id3 tags
+	themshelves remain unchanged.
+
+	If album, track name or artist length is greater than 28 characters
+	(should be 30, but use quotes), then use id3 v2 tags otherwise use
+	id3 v1 tags.
+
+update.pl [-d] [ <filename> ]
+
+	Acts like transfer.pl BUT does not rename files - assumes they have
+	been converted to <artist> - <album> - <trackno> - <name of track>.mp3
+
+	I used this to add total track information to internal database file,
+	without recourse to accessing the CDDB server over the internet.
+	The PERL script to add the total track information has been deleted,
+	it is quite simple really - the power of PERL !
+
+restore.pl [-d] [ <filename> ]
+
+	Acts like transfer.pl and update.pl BUT renames files to audio_<trackno>
+	mp3 files and transfering ID3 tags also. Used when you don't approve of
+	cddb server naming of songs etc. After transferred, you can modify the
+	<filename> to select the required song/album titles (or whatever).
+
+	Should really send an update to the cddb server. But i can't be bothered
+
+create-play-list
+
+	csh script which assumes your mp3 files live in your mp3 directory 
+	below your root directory. The script uses Linux enhancements.
+
+	Output is FILELIST in the mp3 directory. This is suitable for XMMS
+	player. Enjoy !
+
+miscellaneous
+-------------
+
+modify.pl <input file> <dbx file>
+
+	This script is designed to be used if the files need changing and
+	their original paths are altered. Use grab.pl ... --pass <input file>
+	to generate the updated mp3 library.
+	The <dbx file> is the archived database generated from cddb2text.pl
+	and is cddb2text.pl OWN database format and not the CDDB server's
+	listing (which comes from stdout with -e option)
+
+	Save the standard output new database file via file redirection in
+	the shell OR pipe into update.pl script.
+
+If id3 genres are added, use the scripts :-
+
+id3tag.pl [-p] <xmms filename>
+
+	-p gives perl formatting otherwise a C formatting results.
+	<xmms filename> is the filename for xmms's Input/mp123/mp123.c
+
+	BUGS
+	----
+
+	There is a final ',' which must be removed manually when using the
+	perl option. The file generated is used in transfer.pl script.
+
+formid.pl [ <filename> ]
+
+	if <filename> is missing, then access from stdin
+	Used to format for C/C++ code
+

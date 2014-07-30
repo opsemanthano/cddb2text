@@ -1,0 +1,8 @@
+#!/bin/csh -f
+
+set pushdsilent
+pushd .
+cd ~/mp3
+find ~root/mp3 -name '*.mp3' > FILELIST
+popd
+

@@ -1,0 +1,96 @@
+# !/bin/sh
+# Demo script for processing all audio tracks with a mp3 decoder
+# based on a news article by Tom Kludy
+# This variant use to use named pipes in order to save space.
+# My system would halt with Probuably disk space exhausted: Invalid argument
+# So, replaced named pipes with stdout/stdin - a dash '-'
+#
+# usage: mp3rip <directory for cd> [ <track no> { <track no> } ]
+#
+# Use of cdda2wav -J to generate seperate files for each track.
+# This is used in later processing for track/album/artist names
+# via the CDDB server. Other scripts (PERL) query the CDDB server and
+# use id3 tools to tag mp3 files in id3 v1 or v2 formats.
+
+# specify the audio track listing program and its options
+LAT=cdda2wav
+LAT_OPTIONS='-D /dev/hdd -J'
+LIST_TRACKS=list_audio_tracks
+LIST_OPTS='-D /dev/hdd'
+
+# specify the sampling program and its options
+# do not specify the track option here!
+CDDA2WAV=cdda2wav
+CDDA2WAV_OPTS='-D /dev/hdd -d0'
+
+# for normal use, comment out the next line
+#DEBUG='-d1'
+
+# the post processor is fed through a named pipe to avoid space waste
+# specify the post processing program and its options
+MP_CODER=lame
+# fixed bit rate jstereo 128kbs encoding, highest quality
+# Could use --preset cd and VBR with -v (192kbs fixed or 128-320 VBR)
+MP_OPTIONS='-h'
+
+# name of the named pipe
+# Named pipes do not work properly on mine, so i use stdout/stdin
+NPIPEPREFIX='npipe'$$
+NPIPE=$NPIPEPREFIX".wav"
+
+if [ $# -eq 0 ]; then
+ echo "Usage: mp3rip <directory> [ <track no> { <track no> } ]"
+ exit 1
+fi
+
+if [ ! -x "$1" ]; then
+ mkdir "$1"
+fi
+
+cd "$1"
+LOC="$1"
+shift
+
+$LAT $LAT_OPTIONS
+
+# mkfifo $NPIPE
+
+# clean up named pipe on exit, abort, ...
+# trap "rm -rf $NPIPE" 0 2 3 4 6 7 8 10 11 12 13 15
+
+# see '-' on $CDDA2WAV and $MP_CODER lines, to enable named pipes,
+# replace this by $NPIPE and uncomment the trap line and mkfifo above !
+
+if [ $# -ne 0 ]; then
+ while [ $# -ne 0 ]; do
+	TRACKNO=`printf "%02d" $1`
+	$CDDA2WAV $CDDA2WAV_OPTS -t $TRACKNO $DEBUG - |
+	$MP_CODER $MP_OPTIONS - audio_$TRACKNO.mp3
+
+	RES=$?
+	if [ $RES = 0 ] ; then
+	  echo File $LOC/audio_$TRACKNO.mp3 finished successfully.
+	else
+	  echo File $LOC/audio_$TRACKNO.mp3 failed \(result $RES\). Aborted. >&2
+          break
+	fi
+	shift
+ done
+else
+ $LIST_TRACKS $LIST_OPTS | while read TRACKNO STARTSECTOR;
+ do
+       $CDDA2WAV $CDDA2WAV_OPTS -t $TRACKNO $DEBUG - |
+       $MP_CODER $MP_OPTIONS - audio_$TRACKNO.mp3
+
+        RES=$?
+        if [ $RES = 0 ] ; then
+          echo File $LOC/audio_$TRACKNO.mp3 finished successfully.
+        else
+          echo File $LOC/audio_$TRACKNO.mp3 failed \(result $RES\). Aborted. >&2
+          break
+        fi   
+ done
+fi
+
+cd ..
+
