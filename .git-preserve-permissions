@@ -1,0 +1,15 @@
+0600:::FILES
+0600:::README
+0600:::cddb2text.pl
+0600:::create-play-list
+0600:::docs/cddb.howto
+0600:::formats/from_cddb_server
+0600:::formats/output
+0600:::formid.pl
+0600:::grab.pl
+0600:::id3tag.pl
+0600:::modify.pl
+0700:::mp3rip
+0600:::restore.pl
+0600:::transfer.pl
+0600:::update.pl
